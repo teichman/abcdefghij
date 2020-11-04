@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include "cxxopts.hpp"
 
 using namespace std;
 
@@ -103,13 +104,20 @@ private:
 
 int main(int argc, char** argv)
 {
-  BaseNum bn(6);
+  cxxopts::Options options("BaseNum", "Conway's abcdefghi puzzle, but in bases other than 10.");
+  options.add_options()
+    ("b,base", "Base", cxxopts::value<int>())
+    ;
+    // ("d,debug", "Enable debugging") // a bool parameter
+    // ("f,file", "File name", cxxopts::value<std::string>())
+    // ("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
 
+  auto opts = options.parse(argc, argv);
+
+  uint16_t base = opts["base"].as<int>();
+  cout << "Evaluating on base " << base << endl;
+  BaseNum bn(base);
   do {
     cout << bn.status() << endl;
-  } while (bn.nextPermutation());
-  
-  // cout << bn.status() << endl;
-  // cout << bn.prefix().status() << endl;
-  // cout << bn.prefix().prefix().status() << endl;
+  } while (bn.nextPermutation());  
 }
