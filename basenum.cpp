@@ -118,6 +118,7 @@ int main(int argc, char** argv)
   cout << "Evaluating on base " << base << endl;
   BaseNum bn(base);
   do {
-    cout << bn.status() << endl;
+    if (bn.isSolution())
+      cout << bn.status() << endl;
   } while (bn.nextPermutation());  
 }
