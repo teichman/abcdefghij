@@ -40,15 +40,23 @@ public:
   {
     // Note that our use of next_permutation means digits_ must be sorted
     // or we will silently get the wrong answer.
-    digits_.resize(base);
+    digits_.resize(base_);
     for (size_t i = 0; i < digits_.size(); ++i)
       digits_[i] = i;
 
+    exps_.resize(base_);
+    for (size_t i = 0; i < exps_.size(); ++i)
+      exps_[i] = ipow(base_, exps_.size() - i - 1);
+      
     val_ = digits2val();
   }
 
   BaseNum(uint16_t base, const std::vector<uint16_t>& digits) : base_(base), digits_(digits)
   {
+    exps_.resize(base_);
+    for (size_t i = 0; i < exps_.size(); ++i)
+      exps_[i] = ipow(base_, exps_.size() - i - 1);
+    
     val_ = digits2val();
   }
 
@@ -91,14 +99,15 @@ private:
   uint16_t base_;
   uint64_t val_;
   vector<uint16_t> digits_;
-
+  vector<uint32_t> exps_;
+  
   uint64_t digits2val()
   {
     uint64_t val = 0;
-    for (size_t i = 0; i < digits_.size(); ++i) {
-      int pow = digits_.size() - i - 1;
-      val += digits_[i] * ipow(base_, pow);
-    }
+    size_t eidx = exps_.size() - digits_.size();
+    for (size_t i = 0; i < digits_.size(); ++i, ++eidx)
+      val += digits_[i] * exps_[eidx];
+
     return val;
   }
 };
