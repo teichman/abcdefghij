@@ -33,12 +33,13 @@ ostream& operator<<(ostream& out, const vector<uint16_t>& digits)
   return out;
 }
 
-
 class BaseNum
 {
 public:
   BaseNum(uint16_t base) : base_(base)
   {
+    // Note that our use of next_permutation means digits_ must be sorted
+    // or we will silently get the wrong answer.
     digits_.resize(base);
     for (size_t i = 0; i < digits_.size(); ++i)
       digits_[i] = i;
@@ -71,7 +72,8 @@ public:
   }
   
   uint64_t val() const { return val_; }
-  
+
+  // Chop off the last digit.
   BaseNum prefix() const
   {
     vector<uint16_t> newdigits(digits_.begin(), digits_.begin() + digits_.size() - 1);
@@ -104,7 +106,7 @@ private:
 
 int main(int argc, char** argv)
 {
-  cxxopts::Options options("BaseNum", "Conway's abcdefghi puzzle, but in bases other than 10.");
+  cxxopts::Options options("BaseNum", "Conway's abcdefghij puzzle, but in bases other than 10.");
   options.add_options()
     ("b,base", "Base", cxxopts::value<int>())
     ;
