@@ -37,12 +37,9 @@ public:
     for (size_t i = 0; i < digits_.size(); ++i)
       digits_[i] = i;
 
-
     exps_.resize(base_);
     for (size_t i = 0; i < exps_.size(); ++i)
       exps_[i] = ipow(base_, exps_.size() - i - 1);
-
-    cout << exps_ << endl;
     
     // if (base == 13) {
     //   digits_ =  {4, 8, 9, 3, 5, 7, 0, 12, 6, 10, 1, 11, 2};      
