@@ -8,27 +8,20 @@
 
 using namespace std;
 
-int ipow(int base, int exp)
+uint64_t ipow(uint64_t base, uint64_t exp)
 {
-  int result = 1;
-  for (;;)
-  {
-    if (exp & 1)
-      result *= base;
-    exp >>= 1;
-    if (!exp)
-      break;
-    base *= base;
-  }
-
+  uint64_t result = 1;
+  for (int i = 0; i < exp; ++i)
+    result *= base;
   return result;
 }
 
-ostream& operator<<(ostream& out, const vector<uint16_t>& digits)
+template<typename T>
+ostream& operator<<(ostream& out, const vector<T>& vec)
 {
-  out << digits[0];
-  for (size_t i = 1; i < digits.size(); ++i)
-    out << ", " << digits[i];
+  out << vec[0];
+  for (size_t i = 1; i < vec.size(); ++i)
+    out << ", " << vec[i];
 
   return out;
 }
@@ -44,11 +37,22 @@ public:
     for (size_t i = 0; i < digits_.size(); ++i)
       digits_[i] = i;
 
+
     exps_.resize(base_);
     for (size_t i = 0; i < exps_.size(); ++i)
       exps_[i] = ipow(base_, exps_.size() - i - 1);
-      
+
+    cout << exps_ << endl;
+    
+    // if (base == 13) {
+    //   digits_ =  {4, 8, 9, 3, 5, 7, 0, 12, 6, 10, 1, 11, 2};      
+    //   cout << "Using special initial assignment." << endl;
+    // }
+
     val_ = digits2val();
+
+    // if (base == 13) 
+    //   cout << status() << endl;
   }
 
   BaseNum(uint16_t base, const std::vector<uint16_t>& digits) : base_(base), digits_(digits)
@@ -99,7 +103,7 @@ private:
   uint16_t base_;
   uint64_t val_;
   vector<uint16_t> digits_;
-  vector<uint32_t> exps_;
+  vector<uint64_t> exps_;
   
   uint64_t digits2val()
   {
