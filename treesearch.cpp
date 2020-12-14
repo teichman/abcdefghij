@@ -43,6 +43,8 @@ class TreeSearch
 public:  
   TreeSearch(uint16_t base) : base_(base), value_(0), num_evals_(0)
   {
+    mat_ = MatrixXi::Zero(base_, base_);
+    
     used_.resize(base, false);
     used_[0] = true;  // Reserve this for the last digit.
 
@@ -78,36 +80,46 @@ public:
     // If there's only one digit left, we know it has to be zero.
     if (digits_.size() == place_values_.size() - 1) {
       digits_.push_back(0);
+      mat_(base_-1, base_-1) = 1;
       value_ = digits2Val(digits_);
       num_evals_++;
 
       // Check for symmetry.
       MatrixXi m = digits2Matrix(digits_);
-      // cout << "m: " << endl << m << endl;
+      //cout << "m: " << endl << m << endl;
       // cout << "Is symmetric: " << m.isApprox(m.transpose()) << endl;
       cout << "Solution: " << digits_ << " (" << value_ << ")"
            << " [Symmetric: " << m.isApprox(m.transpose()) << "]" << endl;
       assert(value_ % digits_.size() == 0);
 
       digits_.resize(digits_.size() - 1);
+      mat_(base_-1, base_-1) = 0;
       value_ = digits2Val(digits_);
       return num_evals_;
     }
 
     // Otherwise, try adding digits that haven't been used yet, and recursively search if they work.
-    for (size_t digit = 0; digit < place_values_.size(); ++digit) {
+    // We know zero is always the last digit, so don't bother searching over that.
+    for (size_t digit = 1; digit < place_values_.size(); ++digit) {
       if (used_[digit])
         continue;
-      
+
       digits_.push_back(digit);
+      mat_(digit-1, digits_.size()-1) = 1;
       used_[digit] = true;
       value_ = digits2Val(digits_);
       num_evals_++;
-      //cout << "Checking: " << digits_ << endl;
-      
-      if (value_ % digits_.size() == 0)
-        search();
-      
+      //cout << "Checking: " << digits_ << endl;        
+
+      if (value_ % digits_.size() == 0) {
+        // Only search if the answer so far is consistent with a symmetric permutation matrix.
+        //MatrixXi m = digits2Matrix(digits_);
+        const MatrixXi& block = mat_.block(0, 0, digits_.size(), digits_.size());
+        if (block.isApprox(block.transpose()))
+          search();
+      }
+
+      mat_(digit-1, digits_.size()-1) = 0;
       digits_.resize(digits_.size() - 1);
       used_[digit] = false;
       value_ = digits2Val(digits_);
@@ -123,6 +135,10 @@ private:
   vector<uint16_t> digits_;  // in order of most significant to least significant
   vector<bool> used_;
   BigUInt num_evals_;
+  // Matrix form of the solution so far.
+  // Each column corresponds to one digit.
+  // Is a fixed size base_ x base_, all zeros to start, with ones filled in as digits_ grows.
+  MatrixXi mat_;
   
   BigUInt digits2Val(const std::vector<uint16_t>& digits)
   {
@@ -138,10 +154,13 @@ private:
   {
     MatrixXi m = MatrixXi::Zero(digits.size(), digits.size());
     for (size_t i = 0; i < digits.size(); ++i) {
-      if (digits[i] == 0)
-        m(digits.size() - 1, i) = 1;
-      else
+      // Ignore out of bounds digits.
+      if (digits[i] >= m.rows())
+        continue;
+      else if (digits[i] != 0)
         m(digits[i] - 1, i) = 1;
+      else
+        m(digits.size() - 1, i) = 1;
     }
     return m;
   }
@@ -163,6 +182,21 @@ void symmetryCheck()
 
   cout << m << endl;
   cout << "Is symmetric: " << m.isApprox(m.transpose()) << endl;
+
+  int n = 4;
+  MatrixXi big = MatrixXi::Zero(n, n);
+  big(0, 1) = 1;
+  big(1, 0) = 1;
+  big(3, 2) = 1;
+  big(2, 3) = 0;
+  cout << "Submatrix test: " << endl;
+  cout << big << endl;
+ 
+  for (int sz = 1; sz <= n; ++sz) {
+    cout << "Submatrix: " << endl;
+    cout << big.block(0, 0, sz, sz) << endl;
+    cout << "Is symmetric: " << big.block(0, 0, sz, sz).isApprox(big.block(0, 0, sz, sz).transpose()) << endl;
+  }
 }
 
 int main(int argc, char** argv)
