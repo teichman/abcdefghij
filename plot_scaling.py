@@ -34,7 +34,7 @@ if __name__ == "__main__":
   # parser.add_argument('--dir', help='Baseline experiment dir.', default='.')
   args = parser.parse_args()
 
-  xs = np.arange(2, 50)
+  xs = np.arange(2, 30)
   ys_naive = [math.factorial(x) for x in xs]
   ys_tree = [tree(x) for x in xs]
 
@@ -42,8 +42,8 @@ if __name__ == "__main__":
     print(element)
 
   fig, ax = plt.subplots()
-  ax.plot(xs, ys_naive, label='all permutations')
-  ax.plot(xs, ys_tree, label='tree search')
+  ax.semilogy(xs, ys_naive, label='all permutations')
+  ax.semilogy(xs, ys_tree, label='tree search')
   ax.grid()
   ax.set_ylim(bottom=0, top=1e11)
   ax.set_ylabel("Num tests to run")
