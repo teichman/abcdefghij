@@ -41,7 +41,7 @@ ostream& operator<<(ostream& out, const vector<T>& vec)
 class TreeSearch
 {
 public:  
-  TreeSearch(uint16_t base) : base_(base), value_(0), num_evals_(0)
+  TreeSearch(uint16_t base, bool heuristic) : base_(base), heuristic_(heuristic), value_(0), num_evals_(0)
   {
     mat_ = MatrixXi::Zero(base_, base_);
     
@@ -86,7 +86,7 @@ public:
 
       // Check for symmetry.
       MatrixXi m = digits2Matrix(digits_);
-      //cout << "m: " << endl << m << endl;
+      // cout << "m: " << endl << m << endl;
       // cout << "Is symmetric: " << m.isApprox(m.transpose()) << endl;
       cout << "Solution: " << digits_ << " (" << value_ << ")"
            << " [Symmetric: " << m.isApprox(m.transpose()) << "]" << endl;
@@ -109,14 +109,18 @@ public:
       used_[digit] = true;
       value_ = digits2Val(digits_);
       num_evals_++;
-      //cout << "Checking: " << digits_ << endl;        
 
+      // Check the main divisibility constraint.
+      // If we pass, and we're doing an exhaustive search, the continue searching down this branch.
+      // If we pass, and we're doing a heuristic search, check for symmetry first.
       if (value_ % digits_.size() == 0) {
-        // Only search if the answer so far is consistent with a symmetric permutation matrix.
-        //MatrixXi m = digits2Matrix(digits_);
-        const MatrixXi& block = mat_.block(0, 0, digits_.size(), digits_.size());
-        if (block.isApprox(block.transpose()))
+        if (!heuristic_)
           search();
+        else {
+          const MatrixXi& block = mat_.block(0, 0, digits_.size(), digits_.size());
+          if (block.isApprox(block.transpose()))
+            search();
+        }
       }
 
       mat_(digit-1, digits_.size()-1) = 0;
@@ -130,6 +134,7 @@ public:
     
 private:
   uint16_t base_;
+  bool heuristic_;
   BigUInt value_;
   vector<BigUInt> place_values_;
   vector<uint16_t> digits_;  // in order of most significant to least significant
@@ -201,17 +206,37 @@ void symmetryCheck()
 
 int main(int argc, char** argv)
 {
-  //symmetryCheck();
-  cxxopts::Options options("BaseNum", "Conway's abcdefghij puzzle, but in bases other than 10.");
-  options.add_options()
-    ("b,base", "Base", cxxopts::value<int>())
+  cxxopts::Options optspec("treesearch", "Conway's abcdefghij puzzle, but in bases other than 10.\n");
+  optspec.add_options()
+    ("b,base", "What base to search", cxxopts::value<int>())
+    ("heuristic", "Heuristic search (vs exhaustive search)")
+    ("h,help", "Print usage")
     ;
+  
+  cxxopts::ParseResult opts;
+  try {
+    opts = optspec.parse(argc, argv);
+  }
+  catch (const cxxopts::OptionException& e) {
+    cout << optspec.help() << endl;
+    exit(0);
+  }
 
-  auto opts = options.parse(argc, argv);
-
+  if (opts.count("help") || !opts.count("base")) {
+    cout << optspec.help() << endl;
+    exit(0);
+  }
+  
   uint16_t base = opts["base"].as<int>();
   cout << "Evaluating on base " << base << endl;
-  TreeSearch ts(base);
+  
+  bool heuristic = opts.count("heuristic");
+  if (heuristic)
+    cout << "Doing heuristic search.  This won't find all answers, but can search higher bases." << endl;
+  else
+    cout << "Doing exhaustive search.  If an answer exists, this should find it." << endl;
+  
+  TreeSearch ts(base, heuristic);
   BigUInt num_evals = ts.search();
   cout << "Num evals: " << num_evals << endl;
 }
