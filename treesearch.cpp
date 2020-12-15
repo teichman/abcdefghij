@@ -104,6 +104,11 @@ public:
       if (used_[digit])
         continue;
 
+      // In heuristic search, we only try alternating odd / even sequences.
+      if (heuristic_)
+        if (digits_.size() % 2 == digit % 2)
+          continue;
+
       digits_.push_back(digit);
       mat_(digit-1, digits_.size()-1) = 1;
       used_[digit] = true;
