@@ -14,8 +14,9 @@ using namespace Eigen;
 //typedef uint64_t BigUInt;
 //typedef unsigned __int128 BigUInt;  // This one doesn't know how to print itself.
 //typedef boost::multiprecision::uint128_t BigUInt;  // This gets us to base 28.
-typedef boost::multiprecision::uint256_t BigUInt;
-//typedef boost::multiprecision::uint1024_t BigUInt;
+//typedef boost::multiprecision::uint256_t BigUInt;
+//typedef boost::multiprecision::uint512_t BigUInt;
+typedef boost::multiprecision::checked_uint1024_t BigUInt;
 
 BigUInt ipow(BigUInt base, BigUInt exp)
 {
