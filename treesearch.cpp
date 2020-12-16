@@ -11,11 +11,6 @@
 using namespace std;
 using namespace Eigen;
 
-//typedef uint64_t BigUInt;
-//typedef unsigned __int128 BigUInt;  // This one doesn't know how to print itself.
-//typedef boost::multiprecision::uint128_t BigUInt;  // This gets us to base 28.
-//typedef boost::multiprecision::uint256_t BigUInt;
-//typedef boost::multiprecision::uint512_t BigUInt;
 typedef boost::multiprecision::checked_uint1024_t BigUInt;
 
 BigUInt ipow(BigUInt base, BigUInt exp)
@@ -76,26 +71,50 @@ public:
     }
   }
 
+  void push(uint16_t digit)
+  {
+    digits_.push_back(digit);
+    used_[digit] = true;
+
+    // Zero is a special case that is only tried as the last digit.
+    if (digit == 0) {
+      assert((uint16_t)digits_.size() == base_);
+      mat_(base_-1, base_-1) = 1;
+    }
+    else 
+      mat_(digit-1, digits_.size()-1) = 1;
+    
+    value_ = digits2Val(digits_);
+    num_evals_++;
+  }
+
+  void pop()
+  {
+    uint16_t digit = digits_.back();
+    if (digit == 0)
+      mat_(base_-1, base_-1) = 0;
+    else
+      mat_(digit-1, digits_.size()-1) = 0;
+    
+    digits_.resize(digits_.size() - 1);
+    used_[digit] = false;
+    value_ = digits2Val(digits_);
+  }
+  
   BigUInt search()
   { 
     // If there's only one digit left, we know it has to be zero.
     if (digits_.size() == place_values_.size() - 1) {
-      digits_.push_back(0);
-      mat_(base_-1, base_-1) = 1;
-      value_ = digits2Val(digits_);
-      num_evals_++;
+      push(0);
 
-      // Check for symmetry.
-      MatrixXi m = digits2Matrix(digits_);
-      // cout << "m: " << endl << m << endl;
-      // cout << "Is symmetric: " << m.isApprox(m.transpose()) << endl;
-      cout << "Solution: " << digits_ << " (" << value_ << ")"
-           << " [Symmetric: " << m.isApprox(m.transpose()) << "]" << endl;
-      assert(value_ % digits_.size() == 0);
-
-      digits_.resize(digits_.size() - 1);
-      mat_(base_-1, base_-1) = 0;
-      value_ = digits2Val(digits_);
+      if (value_ % digits_.size() == 0) {
+        MatrixXi m = digits2Matrix(digits_);
+        assert(m.isApprox(mat_));
+        cout << "Solution: " << digits_ << " (" << value_ << ")"
+             << " [Symmetric: " << m.isApprox(m.transpose()) << "]" << endl;
+      }
+      
+      pop();
       return num_evals_;
     }
 
@@ -110,14 +129,10 @@ public:
         if (digits_.size() % 2 == digit % 2)
           continue;
 
-      digits_.push_back(digit);
-      mat_(digit-1, digits_.size()-1) = 1;
-      used_[digit] = true;
-      value_ = digits2Val(digits_);
-      num_evals_++;
+      push(digit);
 
       // Check the main divisibility constraint.
-      // If we pass, and we're doing an exhaustive search, the continue searching down this branch.
+      // If we pass, and we're doing an exhaustive search, then continue searching down this branch.
       // If we pass, and we're doing a heuristic search, check for symmetry first.
       if (value_ % digits_.size() == 0) {
         if (!heuristic_)
@@ -129,10 +144,7 @@ public:
         }
       }
 
-      mat_(digit-1, digits_.size()-1) = 0;
-      digits_.resize(digits_.size() - 1);
-      used_[digit] = false;
-      value_ = digits2Val(digits_);
+      pop();
     }
 
     return num_evals_;
@@ -234,13 +246,13 @@ int main(int argc, char** argv)
   }
   
   uint16_t base = opts["base"].as<int>();
-  cout << "Evaluating on base " << base << endl;
-  
   bool heuristic = opts.count("heuristic");
   if (heuristic)
-    cout << "Doing heuristic search.  This won't find all answers, but can search higher bases." << endl;
+    cout << "Doing heuristic search on base " << base << ".  " 
+         << "This won't find all answers, but can search higher bases." << endl;
   else
-    cout << "Doing exhaustive search.  If an answer exists, this should find it." << endl;
+    cout << "Doing exhaustive search on base " << base << ".  " 
+         << "If an answer exists, this should find it." << endl;
   
   TreeSearch ts(base, heuristic);
   BigUInt num_evals = ts.search();
