@@ -1,6 +1,7 @@
 
 treesearch: treesearch.cpp
 	g++ -std=c++14 \
+	-I . \
 	-I /usr/local/Cellar/eigen/3.3.9/include/eigen3 \
 	-O3 -g $^ -o $@
 

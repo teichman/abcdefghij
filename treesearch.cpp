@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
-#include "cxxopts.hpp"
+#include <cxxopts.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <Eigen/Eigen>
 
@@ -37,14 +37,19 @@ ostream& operator<<(ostream& out, const vector<T>& vec)
 class TreeSearch
 {
 public:  
-  TreeSearch(uint16_t base, bool heuristic) : base_(base), heuristic_(heuristic), value_(0), num_evals_(0)
+  TreeSearch(uint16_t base, bool heuristic, bool verbose) :
+    base_(base),
+    heuristic_(heuristic),
+    verbose_(verbose),
+    value_(0),
+    num_evals_(0)
   {
-    mat_ = MatrixXi::Zero(base_, base_);
-    
+    mat_ = MatrixXi::Zero(base_, base_);    
     used_.resize(base, false);
-    used_[0] = true;  // Reserve this for the last digit.
 
     // Fill in place_values_ and check for overflow in them.
+    // This overflow checking is superseded by using boost::multiprecision::checked_uint*_t,
+    // but we'll keep them here anyway...
     bool overflow = false;
     place_values_.resize(base_);
     for (size_t i = 0; i < place_values_.size(); ++i) {
@@ -55,9 +60,7 @@ public:
 
     if (overflow) {
       cout << "Overflow detected." << endl;
-      cout << "Place values:" << endl;
-      for (size_t i = 0; i < place_values_.size(); ++i)
-        cout << place_values_[i] << endl;
+      cout << "Place values: " << place_values_ << endl;
       assert(false);
     }
     
@@ -71,6 +74,8 @@ public:
     }
   }
 
+  // Add a new digit to the end of our number and update everything
+  // associated with that.
   void push(uint16_t digit)
   {
     digits_.push_back(digit);
@@ -86,8 +91,22 @@ public:
     
     value_ = digits2Val(digits_);
     num_evals_++;
+
+    if (verbose_) {
+      cout << "--------------" << endl;
+      cout << "Evaluating..." << endl;
+      cout << "--------------" << endl;
+      cout << "digits_ " << digits_ << endl;
+      cout << "place_values_ " << place_values_ << endl;
+      cout << "used_ " << used_ << endl;
+      cout << "value_ " << value_ << endl;
+      cout << "mat_ " << endl << mat_ << endl;
+      cin.get();
+    }
   }
 
+  // Pop the last digit off the end of our number and undo all the updates
+  // we made in push().
   void pop()
   {
     uint16_t digit = digits_.back();
@@ -153,10 +172,11 @@ public:
 private:
   uint16_t base_;
   bool heuristic_;
+  bool verbose_;
   BigUInt value_;
-  vector<BigUInt> place_values_;
-  vector<uint16_t> digits_;  // in order of most significant to least significant
-  vector<bool> used_;
+  vector<BigUInt> place_values_;  // place_values_[i] is base_^i.
+  vector<uint16_t> digits_;  // The number, in order of most significant to least significant
+  vector<bool> used_;  // used_[i] == true if i appears in the number so far.
   BigUInt num_evals_;
   // Matrix form of the solution so far.
   // Each column corresponds to one digit.
@@ -228,6 +248,7 @@ int main(int argc, char** argv)
   optspec.add_options()
     ("b,base", "What base to search", cxxopts::value<int>())
     ("heuristic", "Heuristic search (vs exhaustive search)")
+    ("v,verbose", "Print each step so you can see it working")
     ("h,help", "Print usage")
     ;
   
@@ -247,6 +268,7 @@ int main(int argc, char** argv)
   
   uint16_t base = opts["base"].as<int>();
   bool heuristic = opts.count("heuristic");
+  bool verbose = opts.count("verbose");
   if (heuristic)
     cout << "Doing heuristic search on base " << base << ".  " 
          << "This won't find all answers, but can search higher bases." << endl;
@@ -254,7 +276,7 @@ int main(int argc, char** argv)
     cout << "Doing exhaustive search on base " << base << ".  " 
          << "If an answer exists, this should find it." << endl;
   
-  TreeSearch ts(base, heuristic);
+  TreeSearch ts(base, heuristic, verbose);
   BigUInt num_evals = ts.search();
   cout << "Num evals: " << num_evals << endl;
 }
