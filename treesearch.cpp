@@ -13,6 +13,18 @@ using namespace Eigen;
 
 typedef boost::multiprecision::checked_uint1024_t BigUInt;
 
+int symmetryViolation(const MatrixXi& mat)
+{
+  assert(mat.rows() == mat.cols());
+  if (mat.cols() < 2)
+    return 0;
+  int num = 0;
+  for (int c = 1; c < mat.cols(); ++c) 
+    for (int r = 0; r < c; ++r)
+      num += (mat.coeffRef(r, c) != mat.coeffRef(c, r));
+  return num;
+}
+
 BigUInt ipow(BigUInt base, BigUInt exp)
 {
   BigUInt result = 1;
@@ -37,9 +49,10 @@ ostream& operator<<(ostream& out, const vector<T>& vec)
 class TreeSearch
 {
 public:  
-  TreeSearch(uint16_t base, bool heuristic, bool verbose) :
+  TreeSearch(uint16_t base, bool heuristic, int max_symmetry_violation, bool verbose) :
     base_(base),
     heuristic_(heuristic),
+    max_symmetry_violation_(max_symmetry_violation),
     verbose_(verbose),
     value_(0),
     num_evals_(0)
@@ -130,7 +143,9 @@ public:
         MatrixXi m = digits2Matrix(digits_);
         assert(m.isApprox(mat_));
         cout << "Solution: " << digits_ << " (" << value_ << ")"
-             << " [Symmetric: " << m.isApprox(m.transpose()) << "]" << endl;
+             << " [Symmetric: " << m.isApprox(m.transpose()) << "]"
+             << " [Symmetry violation: " << symmetryViolation(mat_) << "]" << endl;
+        cout << mat_ << endl;
       }
       
       pop();
@@ -158,7 +173,7 @@ public:
           search();
         else {
           const MatrixXi& block = mat_.block(0, 0, digits_.size(), digits_.size());
-          if (block.isApprox(block.transpose()))
+          if (symmetryViolation(block) <= max_symmetry_violation_)
             search();
         }
       }
@@ -172,6 +187,7 @@ public:
 private:
   uint16_t base_;
   bool heuristic_;
+  int max_symmetry_violation_;
   bool verbose_;
   BigUInt value_;
   vector<BigUInt> place_values_;  // place_values_[i] is base_^i.
@@ -209,14 +225,15 @@ private:
   }
 };
 
-void symmetryCheck()
+void testSymmetry()
 {
-  MatrixXd m(2, 2);
+  MatrixXi m = MatrixXi::Zero(2, 2);
   // m(r, c)
   m(0, 0) = 13;
   m(1, 0) = 42;
   cout << m << endl;
   cout << "Is symmetric: " << m.isApprox(m.transpose()) << endl;
+  cout << "Symmetry violation: " << symmetryViolation(m) << endl;
 
   m(0, 0) = 13;
   m(1, 0) = 42;
@@ -225,6 +242,7 @@ void symmetryCheck()
 
   cout << m << endl;
   cout << "Is symmetric: " << m.isApprox(m.transpose()) << endl;
+  cout << "Symmetry violation: " << symmetryViolation(m) << endl;
 
   int n = 4;
   MatrixXi big = MatrixXi::Zero(n, n);
@@ -234,12 +252,18 @@ void symmetryCheck()
   big(2, 3) = 0;
   cout << "Submatrix test: " << endl;
   cout << big << endl;
+  cout << "Symmetry violation: " << symmetryViolation(big) << endl;
  
   for (int sz = 1; sz <= n; ++sz) {
     cout << "Submatrix: " << endl;
     cout << big.block(0, 0, sz, sz) << endl;
     cout << "Is symmetric: " << big.block(0, 0, sz, sz).isApprox(big.block(0, 0, sz, sz).transpose()) << endl;
+    cout << "Symmetry violation: " << symmetryViolation(big.block(0, 0, sz, sz)) << endl;
   }
+
+  MatrixXi r = MatrixXi::Random(5, 5);
+  cout << "Big random matrix: " << endl << r << endl;
+  cout << "Symmetry violation: " << symmetryViolation(r) << endl;
 }
 
 int main(int argc, char** argv)
@@ -248,7 +272,10 @@ int main(int argc, char** argv)
   optspec.add_options()
     ("b,base", "What base to search", cxxopts::value<int>())
     ("heuristic", "Heuristic search (vs exhaustive search)")
+    ("run-tests", "Run tests")
     ("v,verbose", "Print each step so you can see it working")
+    ("s,max-symmetry-violation", "Maximum number of elements allowed to be non-symmetric",
+     cxxopts::value<int>()->default_value("0"))
     ("h,help", "Print usage")
     ;
   
@@ -258,25 +285,34 @@ int main(int argc, char** argv)
   }
   catch (const cxxopts::OptionException& e) {
     cout << optspec.help() << endl;
-    exit(0);
+    return 0;
+  }
+
+  if (opts.count("run-tests")) {
+    testSymmetry();
+    return 0;
   }
 
   if (opts.count("help") || !opts.count("base")) {
     cout << optspec.help() << endl;
-    exit(0);
+    return 0;
   }
-  
+
   uint16_t base = opts["base"].as<int>();
+  int max_symmetry_violation = opts["max-symmetry-violation"].as<int>();
   bool heuristic = opts.count("heuristic");
   bool verbose = opts.count("verbose");
   if (heuristic)
-    cout << "Doing heuristic search on base " << base << ".  " 
+    cout << "Doing heuristic search on base " << base
+         << " with max symmetry violation " << max_symmetry_violation << ".  "
          << "This won't find all answers, but can search higher bases." << endl;
   else
     cout << "Doing exhaustive search on base " << base << ".  " 
          << "If an answer exists, this should find it." << endl;
   
-  TreeSearch ts(base, heuristic, verbose);
+  TreeSearch ts(base, heuristic, max_symmetry_violation, verbose);
   BigUInt num_evals = ts.search();
   cout << "Num evals: " << num_evals << endl;
+
+  return 0;
 }
